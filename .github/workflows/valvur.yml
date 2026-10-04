@@ -1,0 +1,49 @@
+name: Valvur
+
+# Iga 10 min: kas kontori arvuti runnerid on üleval? Kui ei, suunab tööd GitHubi
+# (vt valvur.sh). Avalik repo → GitHubi masinad on tasuta, see ei kuluta
+# privaatrepode Actions-minuteid.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Ainult ütle, mida teeksid'
+        type: boolean
+        default: false
+
+concurrency:
+  group: valvur
+  cancel-in-progress: false
+
+permissions:
+  contents: write # ainult hoidmise commit allpool
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      # Peeneteraline PAT (Laudur/Raamat, CombatReady, Kontor, kontor-runner):
+      # Actions read/write, Variables read/write, Administration read (runnerite nimekiri).
+      - name: Kontrolli kontori runnereid
+        env:
+          GH_TOKEN: ${{ secrets.KONTOR_VALVUR_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+        run: ./valvur.sh
+
+      # Avalikus repos lülitab GitHub ajastatud töövoo välja, kui 60 päeva pole
+      # ühtegi commit'i. Tühi commit, kui viimane on vanem kui 45 päeva.
+      - name: Hoia ajakava elus
+        if: github.event_name == 'schedule'
+        run: |
+          last=$(git log -1 --format=%ct)
+          if [ $(( ($(date +%s) - last) / 86400 )) -ge 45 ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit --allow-empty -m 'chore: ajakava elus hoidmine'
+            git push
+          fi
