@@ -5,7 +5,10 @@ name: Valvur
 # privaatrepode Actions-minuteid.
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # :03, :13, … — mitte ümmargustel minutitel, kus GitHubi ajastus on kõige
+    # koormatum ja jookse jääb vahele. Kui jooksud lakkavad, sünkroonib selle faili
+    # muutmine (commit) ajastuse uuesti.
+    - cron: '3-59/10 * * * *'
   workflow_dispatch:
     inputs:
       dry_run:
